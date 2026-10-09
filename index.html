@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rock Puncher</title>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ece8dc; --ink: #2a2d2f; --muted: #6b6f70; --accent: #b5651d; --panel: #f6f3ea; --line: #cfc8b6;
+    --font: "Bitter", Georgia, serif;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #1d2123; --ink: #e6e2d6; --muted: #9a9e9f; --accent: #e0a458; --panel: #2a2f32; --line: #3c4144; }
+  }
+  :root[data-theme="dark"] { --bg: #1d2123; --ink: #e6e2d6; --muted: #9a9e9f; --accent: #e0a458; --panel: #2a2f32; --line: #3c4144; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink); font-family: var(--font);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: .75rem; padding: 0 .75rem; user-select: none; -webkit-user-select: none;
+  }
+  .hud { width: 100%; max-width: 900px; display: flex; justify-content: space-between; align-items: baseline; }
+  .stones { font-size: 2rem; font-weight: 800; }
+  .stones small { font-size: 1rem; font-weight: 500; color: var(--muted); }
+  #hint { color: var(--muted); margin: 0; font-size: .95rem; text-align: right; }
+  canvas { width: 100%; max-width: 900px; height: auto; border-radius: 10px; display: block; }
+  canvas.can-punch { cursor: pointer; }
+  .stage { position: relative; width: 100%; max-width: 900px; }
+  .shop-panel {
+    position: absolute; left: 12px; top: 12px; width: min(230px, 55%);
+    background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: .7rem .8rem;
+  }
+  .reset-btn {
+    font: inherit; font-size: .8rem; color: var(--muted); background: none; border: 0;
+    text-decoration: underline; cursor: pointer; padding: .2rem;
+  }
+  .reset-btn:hover { color: var(--ink); }
+  .shop-panel[hidden], .leave-btn[hidden] { display: none; }
+  .leave-btn {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    font: inherit; font-weight: 800; padding: .55rem 1.4rem; border-radius: 8px; cursor: pointer;
+    border: 2px solid var(--line); background: var(--panel); color: var(--ink);
+  }
+  .leave-btn:hover { border-color: var(--accent); }
+  .shop-panel h2 { margin: 0 0 .15rem; font-size: 1rem; }
+  .shop-panel p { margin: 0 0 .5rem; font-size: .85rem; color: var(--muted); }
+  .shop-panel button {
+    width: 100%; font: inherit; font-weight: 800; padding: .5rem; border-radius: 8px; cursor: pointer;
+    border: 2px solid var(--accent); background: var(--accent); color: var(--panel);
+  }
+  .shop-panel button:disabled { background: transparent; color: var(--muted); border-color: var(--line); cursor: default; }
+</style>
+</head>
+<body>
+
+<div class="hud">
+  <div class="stones"><span id="stoneCount">0</span> <small id="stoneLabel">stones</small></div>
+  <p id="hint"></p>
+</div>
+<div class="stage">
+  <canvas id="game" width="900" height="360" aria-label="Rock Puncher game"></canvas>
+  <!-- Shop panel and Leave button: only visible while the shop is open (after clicking the shop) -->
+  <div class="shop-panel" id="shopPanel" hidden>
+    <h2>Tough Fists</h2>
+    <p>Each punch deals 2 damage instead of 1.</p>
+    <button id="buyBtn"></button>
+  </div>
+  <button class="leave-btn" id="leaveBtn" hidden>Leave shop</button>
+</div>
+<button class="reset-btn" id="resetBtn">Reset progress</button>
+
+<script>
+  // ---------- Settings (change these to tweak the game) ----------
+  const STONE_HEALTH = 5;       // damage needed to break off 1 stone
+  const UPGRADE_COST = 25;      // price of Tough Fists, in stones
+  const WALK_SPEED = 220;       // pixels per second
+  const GROUND_Y = 300;         // where the ground starts on the canvas
+  const SHOP_X = 90;            // where the shop is
+  const ROCK_X = 770;           // where the rock is
+
+  // ---------- Game state ----------
+  let stones = 0;
+  let progress = 0;             // damage dealt toward the next stone (carries over between stones)
+  let punchPower = 1;           // damage per punch
+  let hasToughFists = false;    // has the player bought the upgrade?
+  let shopOpen = false;         // is the shop window open?
+  const player = { x: 420, facing: 1, walkPhase: 0, moving: false, punchT: 1 }; // punchT: 0..1 is a punch, 1 = idle
+  const keys = {};              // which movement keys are held down
+  let rockShake = 0;
+  const chips = [];             // little rock bits that fly off when punching
+  const pops = [];              // floating "+1 stone" texts
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const stoneCountEl = document.getElementById("stoneCount");
+  const stoneLabelEl = document.getElementById("stoneLabel");
+  const hintEl = document.getElementById("hint");
+  const shopPanel = document.getElementById("shopPanel");
+  const buyBtn = document.getElementById("buyBtn");
+  const leaveBtn = document.getElementById("leaveBtn");
+
+  // ---------- Colors (switch with the device's light/dark setting) ----------
+  const dark = window.matchMedia("(prefers-color-scheme: dark)");
+  function colors() {
+    return dark.matches
+      ? { sky: "#232a2d", hill: "#2c3538", ground: "#4a4033", ink: "#e6e2d6", rock: "#7b8184", rockLight: "#979da0", rockDark: "#5a6063", wall: "#6b5a43", roof: "#3d3f44", accent: "#e0a458" }
+      : { sky: "#dfe6e2", hill: "#c8d4cc", ground: "#8a7b64", ink: "#2a2d2f", rock: "#8d9396", rockLight: "#a9afb1", rockDark: "#6a7073", wall: "#b08f63", roof: "#5b4a3a", accent: "#b5651d" };
+  }
+
+  // ---------- Input ----------
+  // Walking uses held keys (A/D or arrows). Punching uses ONLY mouse clicks,
+  // so holding a key can never auto-punch.
+  addEventListener("keydown", e => {
+    const k = e.key.toLowerCase();
+    if (["arrowleft", "arrowright", "a", "d"].includes(k)) { keys[k] = true; e.preventDefault(); }
+  });
+  addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
+  addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
+
+  function nearRock() { return player.x >= ROCK_X - 100; }
+  function nearShop() { return player.x <= SHOP_X + 110; }
+
+  // Convert a mouse position on the page to a position on the canvas.
+  function canvasPos(e) {
+    const r = canvas.getBoundingClientRect();
+    return { mx: (e.clientX - r.left) * (canvas.width / r.width), my: (e.clientY - r.top) * (canvas.height / r.height) };
+  }
+  function overRock(e) {
+    const { mx, my } = canvasPos(e);
+    return Math.abs(mx - ROCK_X) < 75 && my > GROUND_Y - 110 && my < GROUND_Y + 5;
+  }
+  function overShop(e) {
+    const { mx, my } = canvasPos(e);
+    return Math.abs(mx - SHOP_X) < 70 && my > GROUND_Y - 140 && my < GROUND_Y + 5;
+  }
+
+  // Show a pointer cursor when you're close enough to click the rock or the shop.
+  canvas.addEventListener("mousemove", e => {
+    const clickable = !shopOpen && ((overRock(e) && nearRock()) || (overShop(e) && nearShop()));
+    canvas.classList.toggle("can-punch", clickable);
+  });
+
+  // The "click" event only fires for a left click, and only once per click (no key repeat).
+  canvas.addEventListener("click", e => {
+    if (shopOpen) return;                                  // no punching or walking while shopping
+    if (overRock(e)) {
+      if (!nearRock()) { pops.push({ x: ROCK_X, y: GROUND_Y - 130, life: 1, text: "Walk closer", small: true }); return; }
+      punchRock();
+    } else if (overShop(e)) {
+      if (!nearShop()) { pops.push({ x: SHOP_X, y: GROUND_Y - 155, life: 1, text: "Walk closer", small: true }); return; }
+      shopOpen = true;                                     // clicking the shop opens it
+    }
+  });
+
+  // Leave the shop with the button (or the Escape key).
+  leaveBtn.addEventListener("click", () => { shopOpen = false; });
+  addEventListener("keydown", e => { if (e.key === "Escape") shopOpen = false; });
+
+  // ---------- The core mechanic ----------
+  function punchRock() {
+    player.facing = 1;          // face the rock
+    player.punchT = 0;          // start the punch animation
+    rockShake = 1;
+    for (let i = 0; i < 4; i++) chips.push({ x: ROCK_X - 50, y: GROUND_Y - 60, vx: -60 - Math.random() * 90, vy: -120 - Math.random() * 80, life: 1 });
+    progress += punchPower;                       // add this punch's damage
+    let gained = 0;
+    while (progress >= STONE_HEALTH) {            // a stone breaks off...
+      progress -= STONE_HEALTH;                   // ...and leftover damage carries over to the next one
+      stones += 1;
+      gained += 1;
+    }
+    if (gained > 0) pops.push({ x: ROCK_X, y: GROUND_Y - 130, life: 1, text: gained === 1 ? "+1 stone" : "+" + gained + " stones" });
+    saveGame();
+  }
+
+  // ---------- The shop ----------
+  function buyToughFists() {
+    if (hasToughFists || stones < UPGRADE_COST) return;   // already owned, or can't afford it
+    stones -= UPGRADE_COST;
+    hasToughFists = true;
+    punchPower = 2;
+    saveGame();
+  }
+  buyBtn.addEventListener("click", buyToughFists);
+
+  // ---------- Update (runs every frame) ----------
+  function update(dt) {
+    const dir = shopOpen ? 0 : (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0);
+    player.moving = dir !== 0 && player.punchT >= 1;     // can't walk mid-punch
+    if (player.moving) {
+      player.x += dir * WALK_SPEED * dt;
+      player.facing = dir;
+      player.walkPhase += dt * 10;
+    }
+    player.x = Math.max(30, Math.min(ROCK_X - 60, player.x));   // stay inside the world, don't walk into the rock
+    if (player.punchT < 1) player.punchT = Math.min(1, player.punchT + dt / 0.22);
+    rockShake = Math.max(0, rockShake - dt * 6);
+    for (const c of chips) { c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 500 * dt; c.life -= dt * 1.6; }
+    for (const p of pops) { p.y -= 40 * dt; p.life -= dt * 1.2; }
+    for (const list of [chips, pops]) for (let i = list.length - 1; i >= 0; i--) if (list[i].life <= 0) list.splice(i, 1);
+
+    stoneCountEl.textContent = stones;
+    stoneLabelEl.textContent = stones === 1 ? "stone" : "stones";
+    const left = STONE_HEALTH - progress;
+    hintEl.textContent = shopOpen ? "Browsing the shop"
+      : nearRock() ? `Punch power ${punchPower}: ${left} more damage for the next stone`
+      : nearShop() ? "Click the shop to go in"
+      : "Walk with A / D or the arrow keys";
+
+    shopPanel.hidden = !shopOpen;                         // the shop window only shows once you click the shop
+    leaveBtn.hidden = !shopOpen;
+    buyBtn.disabled = hasToughFists || stones < UPGRADE_COST;
+    buyBtn.textContent = hasToughFists ? "Owned" : stones < UPGRADE_COST ? `Need ${UPGRADE_COST} stones` : `Buy for ${UPGRADE_COST} stones`;
+  }
+
+  // ---------- Drawing ----------
+  function drawStickFigure(c) {
+    const x = player.x, f = player.facing, G = GROUND_Y;
+    const hipY = G - 28, shoulderY = G - 58;
+    const swing = player.moving ? Math.sin(player.walkPhase) * 11 : 0;
+    ctx.strokeStyle = c.ink; ctx.fillStyle = c.ink; ctx.lineWidth = 4; ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x, hipY); ctx.lineTo(x + swing, G);            // legs
+    ctx.moveTo(x, hipY); ctx.lineTo(x - swing, G);
+    ctx.moveTo(x, hipY); ctx.lineTo(x, shoulderY);            // body
+    // back arm swings opposite the legs
+    ctx.moveTo(x, shoulderY + 4); ctx.lineTo(x - f * 14 + swing * f * 0.6, shoulderY + 24);
+    // front arm: swings while walking, shoots forward when punching
+    let handX = x + f * 14 - swing * f * 0.6, handY = shoulderY + 24;
+    if (player.punchT < 1) {
+      const reach = Math.sin(Math.PI * player.punchT);
+      handX = x + f * (16 + reach * 24); handY = shoulderY + 6;
+    }
+    ctx.moveTo(x, shoulderY + 4); ctx.lineTo(handX, handY);
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, G - 72, 11, 0, Math.PI * 2); ctx.fill();   // head
+  }
+
+  function drawRock(c) {
+    const shake = Math.sin(performance.now() / 18) * 4 * rockShake;
+    ctx.save();
+    ctx.translate(ROCK_X + shake, GROUND_Y);
+    const poly = (pts, fill) => { ctx.beginPath(); pts.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); };
+    poly([[-70, 0], [-78, -50], [-40, -92], [10, -108], [58, -86], [80, -40], [66, 0]], c.rock);
+    poly([[-40, -92], [10, -108], [58, -86], [20, -70], [-20, -76]], c.rockLight);
+    poly([[66, 0], [80, -40], [58, -86], [30, -50], [40, 0]], c.rockDark);
+    ctx.restore();
+  }
+
+  function drawShop(c) {
+    ctx.fillStyle = c.wall; ctx.fillRect(SHOP_X - 55, GROUND_Y - 95, 110, 95);
+    ctx.fillStyle = c.roof;
+    ctx.beginPath(); ctx.moveTo(SHOP_X - 70, GROUND_Y - 95); ctx.lineTo(SHOP_X, GROUND_Y - 140); ctx.lineTo(SHOP_X + 70, GROUND_Y - 95); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = c.ground; ctx.fillRect(SHOP_X - 14, GROUND_Y - 52, 28, 52);          // door
+    ctx.fillStyle = c.ink; ctx.font = "800 15px Bitter, Georgia, serif"; ctx.textAlign = "center";
+    ctx.fillText("SHOP", SHOP_X, GROUND_Y - 66);
+  }
+
+  function draw() {
+    const c = colors();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = c.sky; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = c.hill;                                                                // far hills
+    ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.quadraticCurveTo(220, 170, 450, GROUND_Y); ctx.quadraticCurveTo(680, 190, 900, GROUND_Y); ctx.fill();
+    ctx.fillStyle = c.ground; ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
+    drawShop(c); drawRock(c); drawStickFigure(c);
+    ctx.fillStyle = c.rock;
+    for (const ch of chips) { ctx.globalAlpha = Math.max(0, ch.life); ctx.fillRect(ch.x, ch.y, 5, 5); }
+    ctx.textAlign = "center";
+    for (const p of pops) { ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = c.accent; ctx.font = `800 ${p.small ? 16 : 24}px Bitter, Georgia, serif`; ctx.fillText(p.text, p.x, p.y); }
+    ctx.globalAlpha = 1;
+    if (nearRock()) {                                                                      // punch progress dots above the rock
+      for (let i = 0; i < STONE_HEALTH; i++) {
+        ctx.beginPath(); ctx.arc(ROCK_X + (i - (STONE_HEALTH - 1) / 2) * 20, GROUND_Y - 128, 6, 0, Math.PI * 2);
+        ctx.fillStyle = i < progress ? c.accent : c.rockDark; ctx.globalAlpha = i < progress ? 1 : 0.45; ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // ---------- Saving and loading ----------
+  // localStorage keeps small pieces of text in the browser, even after the tab is closed.
+  const SAVE_KEY = "rockPuncherSave";
+
+  function saveGame() {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ stones, progress, hasToughFists }));
+    } catch (err) { /* storage can be blocked; the game still works, it just won't save */ }
+  }
+
+  function loadGame() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return;                                       // first time playing: nothing saved yet
+      const data = JSON.parse(raw);
+      stones = Math.max(0, Math.floor(Number(data.stones) || 0));
+      progress = Math.min(STONE_HEALTH - 1, Math.max(0, Math.floor(Number(data.progress) || 0)));
+      hasToughFists = data.hasToughFists === true;
+      punchPower = hasToughFists ? 2 : 1;                     // punch power is worked out from what you own
+    } catch (err) { /* damaged save: ignore it and start fresh */ }
+  }
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    if (!confirm("Erase all progress and start over?")) return;
+    stones = 0; progress = 0; hasToughFists = false; punchPower = 1; shopOpen = false;
+    try { localStorage.removeItem(SAVE_KEY); } catch (err) {}
+  });
+
+  loadGame();   // restore saved progress before the game starts
+
+  // ---------- Game loop ----------
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>
