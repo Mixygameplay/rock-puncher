@@ -7,16 +7,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #ece8dc; --ink: #2a2d2f; --muted: #6b6f70; --accent: #b5651d;
+    --bg: #ece8dc; --ink: #2a2d2f; --muted: #6b6f70; --accent: #b5651d; --panel: #f6f3ea; --line: #cfc8b6;
     --font: "Bitter", Georgia, serif;
     box-sizing: border-box;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --bg: #1d2123; --ink: #e6e2d6; --muted: #9a9e9f; --accent: #e0a458; }
+    :root:not([data-theme="light"]) { --bg: #1d2123; --ink: #e6e2d6; --muted: #9a9e9f; --accent: #e0a458; --panel: #2a2f32; --line: #3c4144; }
   }
-  :root[data-theme="dark"] { --bg: #1d2123; --ink: #e6e2d6; --muted: #9a9e9f; --accent: #e0a458; }
+  :root[data-theme="dark"] { --bg: #1d2123; --ink: #e6e2d6; --muted: #9a9e9f; --accent: #e0a458; --panel: #2a2f32; --line: #3c4144; }
   html, body { height: 100%; margin: 0; }
   body {
     background: var(--bg); color: var(--ink); font-family: var(--font);
@@ -29,6 +29,30 @@
   #hint { color: var(--muted); margin: 0; font-size: .95rem; text-align: right; }
   canvas { width: 100%; max-width: 900px; height: auto; border-radius: 10px; display: block; }
   canvas.can-punch { cursor: pointer; }
+  .stage { position: relative; width: 100%; max-width: 900px; }
+  .shop-panel {
+    position: absolute; left: 12px; top: 12px; width: min(230px, 55%);
+    background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: .7rem .8rem;
+  }
+  .reset-btn {
+    font: inherit; font-size: .8rem; color: var(--muted); background: none; border: 0;
+    text-decoration: underline; cursor: pointer; padding: .2rem;
+  }
+  .reset-btn:hover { color: var(--ink); }
+  .shop-panel[hidden], .leave-btn[hidden] { display: none; }
+  .leave-btn {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    font: inherit; font-weight: 800; padding: .55rem 1.4rem; border-radius: 8px; cursor: pointer;
+    border: 2px solid var(--line); background: var(--panel); color: var(--ink);
+  }
+  .leave-btn:hover { border-color: var(--accent); }
+  .shop-panel h2 { margin: 0 0 .15rem; font-size: 1rem; }
+  .shop-panel p { margin: 0 0 .5rem; font-size: .85rem; color: var(--muted); }
+  .shop-panel button {
+    width: 100%; font: inherit; font-weight: 800; padding: .5rem; border-radius: 8px; cursor: pointer;
+    border: 2px solid var(--accent); background: var(--accent); color: var(--panel);
+  }
+  .shop-panel button:disabled { background: transparent; color: var(--muted); border-color: var(--line); cursor: default; }
 </style>
 </head>
 <body>
@@ -37,18 +61,33 @@
   <div class="stones"><span id="stoneCount">0</span> <small id="stoneLabel">stones</small></div>
   <p id="hint"></p>
 </div>
-<canvas id="game" width="900" height="360" aria-label="Rock Puncher game"></canvas>
+<div class="stage">
+  <canvas id="game" width="900" height="360" aria-label="Rock Puncher game"></canvas>
+  <!-- Shop panel and Leave button: only visible while the shop is open (after clicking the shop) -->
+  <div class="shop-panel" id="shopPanel" hidden>
+    <h2>Tough Fists</h2>
+    <p>Each punch deals 2 damage instead of 1.</p>
+    <button id="buyBtn"></button>
+  </div>
+  <button class="leave-btn" id="leaveBtn" hidden>Leave shop</button>
+</div>
+<button class="reset-btn" id="resetBtn">Reset progress</button>
 
 <script>
   // ---------- Settings (change these to tweak the game) ----------
-  const CLICKS_PER_STONE = 5;   // punches needed for 1 stone
+  const STONE_HEALTH = 5;       // damage needed to break off 1 stone
+  const UPGRADE_COST = 25;      // price of Tough Fists, in stones
   const WALK_SPEED = 220;       // pixels per second
   const GROUND_Y = 300;         // where the ground starts on the canvas
   const SHOP_X = 90;            // where the shop is
   const ROCK_X = 770;           // where the rock is
 
   // ---------- Game state ----------
-  let stones = 0, clicks = 0;
+  let stones = 0;
+  let progress = 0;             // damage dealt toward the next stone (carries over between stones)
+  let punchPower = 1;           // damage per punch
+  let hasToughFists = false;    // has the player bought the upgrade?
+  let shopOpen = false;         // is the shop window open?
   const player = { x: 420, facing: 1, walkPhase: 0, moving: false, punchT: 1 }; // punchT: 0..1 is a punch, 1 = idle
   const keys = {};              // which movement keys are held down
   let rockShake = 0;
@@ -60,6 +99,9 @@
   const stoneCountEl = document.getElementById("stoneCount");
   const stoneLabelEl = document.getElementById("stoneLabel");
   const hintEl = document.getElementById("hint");
+  const shopPanel = document.getElementById("shopPanel");
+  const buyBtn = document.getElementById("buyBtn");
+  const leaveBtn = document.getElementById("leaveBtn");
 
   // ---------- Colors (switch with the device's light/dark setting) ----------
   const dark = window.matchMedia("(prefers-color-scheme: dark)");
@@ -82,22 +124,41 @@
   function nearRock() { return player.x >= ROCK_X - 100; }
   function nearShop() { return player.x <= SHOP_X + 110; }
 
-  // Convert a mouse position to canvas coordinates and check if it is over the rock.
-  function overRock(e) {
+  // Convert a mouse position on the page to a position on the canvas.
+  function canvasPos(e) {
     const r = canvas.getBoundingClientRect();
-    const mx = (e.clientX - r.left) * (canvas.width / r.width);
-    const my = (e.clientY - r.top) * (canvas.height / r.height);
+    return { mx: (e.clientX - r.left) * (canvas.width / r.width), my: (e.clientY - r.top) * (canvas.height / r.height) };
+  }
+  function overRock(e) {
+    const { mx, my } = canvasPos(e);
     return Math.abs(mx - ROCK_X) < 75 && my > GROUND_Y - 110 && my < GROUND_Y + 5;
   }
+  function overShop(e) {
+    const { mx, my } = canvasPos(e);
+    return Math.abs(mx - SHOP_X) < 70 && my > GROUND_Y - 140 && my < GROUND_Y + 5;
+  }
 
-  canvas.addEventListener("mousemove", e => canvas.classList.toggle("can-punch", overRock(e) && nearRock()));
+  // Show a pointer cursor when you're close enough to click the rock or the shop.
+  canvas.addEventListener("mousemove", e => {
+    const clickable = !shopOpen && ((overRock(e) && nearRock()) || (overShop(e) && nearShop()));
+    canvas.classList.toggle("can-punch", clickable);
+  });
 
   // The "click" event only fires for a left click, and only once per click (no key repeat).
   canvas.addEventListener("click", e => {
-    if (!overRock(e)) return;
-    if (!nearRock()) { pops.push({ x: ROCK_X, y: GROUND_Y - 130, life: 1, text: "Walk closer", small: true }); return; }
-    punchRock();
+    if (shopOpen) return;                                  // no punching or walking while shopping
+    if (overRock(e)) {
+      if (!nearRock()) { pops.push({ x: ROCK_X, y: GROUND_Y - 130, life: 1, text: "Walk closer", small: true }); return; }
+      punchRock();
+    } else if (overShop(e)) {
+      if (!nearShop()) { pops.push({ x: SHOP_X, y: GROUND_Y - 155, life: 1, text: "Walk closer", small: true }); return; }
+      shopOpen = true;                                     // clicking the shop opens it
+    }
   });
+
+  // Leave the shop with the button (or the Escape key).
+  leaveBtn.addEventListener("click", () => { shopOpen = false; });
+  addEventListener("keydown", e => { if (e.key === "Escape") shopOpen = false; });
 
   // ---------- The core mechanic ----------
   function punchRock() {
@@ -105,17 +166,30 @@
     player.punchT = 0;          // start the punch animation
     rockShake = 1;
     for (let i = 0; i < 4; i++) chips.push({ x: ROCK_X - 50, y: GROUND_Y - 60, vx: -60 - Math.random() * 90, vy: -120 - Math.random() * 80, life: 1 });
-    clicks += 1;
-    if (clicks >= CLICKS_PER_STONE) {
-      clicks = 0;
+    progress += punchPower;                       // add this punch's damage
+    let gained = 0;
+    while (progress >= STONE_HEALTH) {            // a stone breaks off...
+      progress -= STONE_HEALTH;                   // ...and leftover damage carries over to the next one
       stones += 1;
-      pops.push({ x: ROCK_X, y: GROUND_Y - 130, life: 1, text: "+1 stone" });
+      gained += 1;
     }
+    if (gained > 0) pops.push({ x: ROCK_X, y: GROUND_Y - 130, life: 1, text: gained === 1 ? "+1 stone" : "+" + gained + " stones" });
+    saveGame();
   }
+
+  // ---------- The shop ----------
+  function buyToughFists() {
+    if (hasToughFists || stones < UPGRADE_COST) return;   // already owned, or can't afford it
+    stones -= UPGRADE_COST;
+    hasToughFists = true;
+    punchPower = 2;
+    saveGame();
+  }
+  buyBtn.addEventListener("click", buyToughFists);
 
   // ---------- Update (runs every frame) ----------
   function update(dt) {
-    const dir = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0);
+    const dir = shopOpen ? 0 : (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0);
     player.moving = dir !== 0 && player.punchT >= 1;     // can't walk mid-punch
     if (player.moving) {
       player.x += dir * WALK_SPEED * dt;
@@ -131,10 +205,16 @@
 
     stoneCountEl.textContent = stones;
     stoneLabelEl.textContent = stones === 1 ? "stone" : "stones";
-    const left = CLICKS_PER_STONE - clicks;
-    hintEl.textContent = nearRock() ? `Click the rock: ${left} more ${left === 1 ? "punch" : "punches"} for a stone`
-      : nearShop() ? "The shop isn't open yet"
+    const left = STONE_HEALTH - progress;
+    hintEl.textContent = shopOpen ? "Browsing the shop"
+      : nearRock() ? `Punch power ${punchPower}: ${left} more damage for the next stone`
+      : nearShop() ? "Click the shop to go in"
       : "Walk with A / D or the arrow keys";
+
+    shopPanel.hidden = !shopOpen;                         // the shop window only shows once you click the shop
+    leaveBtn.hidden = !shopOpen;
+    buyBtn.disabled = hasToughFists || stones < UPGRADE_COST;
+    buyBtn.textContent = hasToughFists ? "Owned" : stones < UPGRADE_COST ? `Need ${UPGRADE_COST} stones` : `Buy for ${UPGRADE_COST} stones`;
   }
 
   // ---------- Drawing ----------
@@ -194,13 +274,43 @@
     for (const p of pops) { ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = c.accent; ctx.font = `800 ${p.small ? 16 : 24}px Bitter, Georgia, serif`; ctx.fillText(p.text, p.x, p.y); }
     ctx.globalAlpha = 1;
     if (nearRock()) {                                                                      // punch progress dots above the rock
-      for (let i = 0; i < CLICKS_PER_STONE; i++) {
-        ctx.beginPath(); ctx.arc(ROCK_X + (i - (CLICKS_PER_STONE - 1) / 2) * 20, GROUND_Y - 128, 6, 0, Math.PI * 2);
-        ctx.fillStyle = i < clicks ? c.accent : c.rockDark; ctx.globalAlpha = i < clicks ? 1 : 0.45; ctx.fill();
+      for (let i = 0; i < STONE_HEALTH; i++) {
+        ctx.beginPath(); ctx.arc(ROCK_X + (i - (STONE_HEALTH - 1) / 2) * 20, GROUND_Y - 128, 6, 0, Math.PI * 2);
+        ctx.fillStyle = i < progress ? c.accent : c.rockDark; ctx.globalAlpha = i < progress ? 1 : 0.45; ctx.fill();
       }
       ctx.globalAlpha = 1;
     }
   }
+
+  // ---------- Saving and loading ----------
+  // localStorage keeps small pieces of text in the browser, even after the tab is closed.
+  const SAVE_KEY = "rockPuncherSave";
+
+  function saveGame() {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ stones, progress, hasToughFists }));
+    } catch (err) { /* storage can be blocked; the game still works, it just won't save */ }
+  }
+
+  function loadGame() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return;                                       // first time playing: nothing saved yet
+      const data = JSON.parse(raw);
+      stones = Math.max(0, Math.floor(Number(data.stones) || 0));
+      progress = Math.min(STONE_HEALTH - 1, Math.max(0, Math.floor(Number(data.progress) || 0)));
+      hasToughFists = data.hasToughFists === true;
+      punchPower = hasToughFists ? 2 : 1;                     // punch power is worked out from what you own
+    } catch (err) { /* damaged save: ignore it and start fresh */ }
+  }
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    if (!confirm("Erase all progress and start over?")) return;
+    stones = 0; progress = 0; hasToughFists = false; punchPower = 1; shopOpen = false;
+    try { localStorage.removeItem(SAVE_KEY); } catch (err) {}
+  });
+
+  loadGame();   // restore saved progress before the game starts
 
   // ---------- Game loop ----------
   let last = performance.now();
