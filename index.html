@@ -28,24 +28,58 @@
   .hud small { font-size: .95rem; font-weight: 500; color: var(--muted); }
   .full { color: var(--accent); font-size: .9rem; margin-left: .4rem; }
   .full[hidden] { display: none; }
+  #bagDetail { margin-left: .6rem; }
   #hint { color: var(--muted); margin: 0; font-size: .95rem; text-align: center; min-height: 1.3em; }
   canvas { width: 100%; height: auto; border-radius: 10px; display: block; }
   canvas.clickable { cursor: pointer; }
-  .stage { position: relative; width: var(--game-w); }
-  .panel {
-    position: absolute; left: 12px; top: 12px; width: min(240px, 58%);
-    background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: .7rem .8rem;
+  .stage { position: relative; width: var(--game-w); container-type: inline-size; }
+  .shop-scene {
+    --s: clamp(11px, 1.4cqw, 22px); --m: clamp(13px, 1.75cqw, 27px); --l: clamp(20px, 3.2cqw, 48px);
+    position: absolute; inset: 0; z-index: 2; border-radius: 10px; overflow: hidden; box-sizing: border-box;
+    display: flex; flex-direction: column; padding: 2.5cqw 3.5cqw 9cqw; color: #f4ead6; font-size: var(--s);
+    background:
+      linear-gradient(to bottom, rgba(0,0,0,.3), rgba(0,0,0,0) 30%, rgba(0,0,0,.4)),
+      repeating-linear-gradient(90deg, #8f6a40 0 5cqw, #9a7347 5cqw 10cqw);        /* wooden wall */
   }
-  .panel[hidden], .leave-btn[hidden] { display: none; }
-  .panel h2 { margin: 0 0 .15rem; font-size: 1rem; }
-  .panel p { margin: 0 0 .5rem; font-size: .85rem; color: var(--muted); }
-  .panel button {
-    width: 100%; font: inherit; font-weight: 800; padding: .5rem; border-radius: 8px; cursor: pointer;
-    border: 2px solid var(--accent); background: var(--accent); color: var(--panel);
+  .shop-scene::after {                                                               /* the counter along the bottom */
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 7cqw;
+    background: linear-gradient(#6b4a2e, #4a3220); border-top: .5cqw solid #3a2616;
   }
-  .panel button:disabled { background: transparent; color: var(--muted); border-color: var(--line); cursor: default; }
+  .shop-scene[hidden], .leave-btn[hidden] { display: none; }
+  .shop-head { display: flex; justify-content: space-between; align-items: flex-end; }
+  .shop-head h2 { margin: 0 0 .6cqw; font-size: var(--l); text-shadow: 0 2px 0 rgba(0,0,0,.4); }
+  .tabs { display: flex; gap: .6cqw; }
+  .tab {
+    font: inherit; font-weight: 800; font-size: var(--m); padding: .6cqw 2.2cqw; cursor: pointer;
+    border: .3cqw solid #3a2616; border-bottom: 0; border-radius: 1cqw 1cqw 0 0; background: #6b4a2e; color: #f4ead6;
+  }
+  .tab[aria-selected="true"] { background: #f1e3c4; color: #3a2616; }
+  .shop-board {
+    flex: 1; min-height: 0; overflow: auto; box-sizing: border-box; padding: 2cqw;
+    background: #f1e3c4; color: #3a2616; border: .35cqw solid #3a2616; border-radius: 1cqw 1cqw 1.2cqw 1.2cqw;
+  }
+  .cats { display: grid; grid-template-columns: repeat(auto-fit, minmax(clamp(110px, 18cqw, 260px), 1fr)); gap: 1.8cqw; }
+  .cat h3 { margin: 0 0 1cqw; padding-bottom: .5cqw; font-size: var(--m); border-bottom: .3cqw solid rgba(58,38,22,.35); }
+  .item { background: #fff8e6; border: .3cqw solid #3a2616; border-radius: 1cqw; padding: 1.2cqw; }
+  .item h4 { margin: 0 0 .4cqw; font-size: var(--m); }
+  .item p { margin: 0 0 1cqw; font-size: var(--s); color: #6b5640; }
+  .buy {
+    width: 100%; font: inherit; font-weight: 800; font-size: var(--s); padding: .8cqw; border-radius: .8cqw; cursor: pointer;
+    border: .25cqw solid #8a4a14; background: #c9722a; color: #fff8e6;
+  }
+  .buy:disabled { background: transparent; color: rgba(58,38,22,.55); border-color: rgba(58,38,22,.3); cursor: default; }
+  .empty {
+    display: grid; place-items: center; min-height: 9cqw; border: .3cqw dashed rgba(58,38,22,.35); border-radius: 1cqw;
+    color: rgba(58,38,22,.45); font-size: var(--s);
+  }
+  .mat { background: #fff8e6; border: .3cqw solid #3a2616; border-radius: 1cqw; padding: 1cqw 1.2cqw; margin-bottom: 1cqw; }
+  .item.copper { border-left: 1.2cqw solid #c6702e; margin-bottom: 1cqw; }
+  .mat b { display: block; font-size: var(--m); }
+  .mat span { font-size: var(--s); color: #6b5640; }
+  .empty.mini { min-height: 5cqw; }
+  .empty.big { min-height: 22cqw; font-size: var(--m); }
   .leave-btn {
-    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    position: absolute; z-index: 3; left: 50%; bottom: 14px; transform: translateX(-50%);
     font: inherit; font-weight: 800; padding: .55rem 1.4rem; border-radius: 8px; cursor: pointer;
     border: 2px solid var(--line); background: var(--panel); color: var(--ink);
   }
@@ -57,16 +91,59 @@
 <body>
 
 <div class="hud">
-  <div>Stones <span id="bagCount">0</span><small> / <span id="bagCap">10</span></small><span class="full" id="bagFull" hidden>FULL</span></div>
+  <div>Bag <span id="bagCount">0</span><small> / <span id="bagCap">10</span></small><span class="full" id="bagFull" hidden>FULL</span><small id="bagDetail"></small></div>
   <div id="money">$0</div>
 </div>
 <div class="stage">
   <canvas id="game" width="1000" height="500" aria-label="Rock Puncher game"></canvas>
-  <!-- Shop window: only visible after you click the shop -->
-  <div class="panel" id="shopPanel" hidden>
-    <h2>Tough Fists</h2>
-    <p>Each punch deals 2 damage instead of 1.</p>
-    <button id="buyBtn"></button>
+  <!-- The shop scene: covers the game while you are in the shop. It has two pages: Upgrades and Tools. -->
+  <div class="shop-scene" id="shopScene" hidden>
+    <div class="shop-head">
+      <h2>The Shop</h2>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" data-page="upgrades" aria-selected="true">Upgrades</button>
+        <button class="tab" role="tab" data-page="rock" aria-selected="false">Rock</button>
+        <button class="tab" role="tab" data-page="tools" aria-selected="false">Tools</button>
+        <button class="tab" role="tab" data-page="passives" aria-selected="false">Passives</button>
+      </div>
+    </div>
+    <div class="shop-board">
+      <div class="page" data-page="upgrades">
+        <div class="cats">
+          <section class="cat">
+            <h3>Strength</h3>
+            <div class="item"><h4>Tough Fists</h4><p>Each punch deals 2 damage instead of 1.</p><button class="buy" id="buyBtn"></button></div>
+          </section>
+          <section class="cat"><h3>Backpack</h3><div class="empty">Nothing here yet</div></section>
+          <section class="cat">
+            <h3>Speed</h3>
+            <div class="item"><h4>Quick Hands</h4><p>+10% mining speed. Your punches come faster.</p><button class="buy" id="buyQuickBtn"></button></div>
+          </section>
+          <section class="cat"><h3>Crusher</h3><div class="empty">Nothing here yet</div></section>
+        </div>
+      </div>
+      <div class="page" data-page="rock" hidden>
+        <div class="cats">
+          <section class="cat">
+            <h3>Materials</h3>
+            <div class="mat"><b>Stone</b><span>$1 each. The basic material.</span></div>
+            <div class="item copper"><h4>Copper</h4><p>$2 each. Takes 6 damage to break out (stone takes 5). Once unlocked, <span id="copperChance">50</span>% of the rock gives copper, and the rock shows copper bits.</p><button class="buy" id="buyCopperBtn"></button></div>
+            <div class="empty mini">Next material: coming soon</div>
+          </section>
+          <section class="cat"><h3>Drop Rate</h3><div class="empty">Nothing here yet</div></section>
+        </div>
+      </div>
+      <div class="page" data-page="tools" hidden>
+        <div class="cats">
+          <section class="cat">
+            <h3>Hands</h3>
+            <div class="item"><h4>Gloves</h4><p>+1 damage per punch and +10% mining speed. Your character wears them.</p><button class="buy" id="buyGlovesBtn"></button></div>
+          </section>
+          <section class="cat"><h3>More tools</h3><div class="empty">Coming soon</div></section>
+        </div>
+      </div>
+      <div class="page" data-page="passives" hidden><div class="empty big">Nothing here yet</div></div>
+    </div>
   </div>
   <button class="leave-btn" id="leaveBtn" hidden>Leave shop</button>
 </div>
@@ -76,9 +153,24 @@
 <script>
   // ---------- Settings (change these to tweak the game) ----------
   const STONE_HEALTH = 5;       // damage needed to break off 1 stone
-  const STONE_VALUE = 1;        // dollars you get for each stone sold at the crusher
+  // The materials the rock can give. "health" is how much damage it takes to break one out (a stone takes 5, copper takes 6).
+  const MATERIALS = {
+    stone:  { name: "Stone",  value: 1, health: STONE_HEALTH, cost: 0 },
+    copper: { name: "Copper", value: 2, health: 6, cost: 50,
+      // How the rock looks once this material is unlocked. "flecks" are small bits that are always on the rock;
+      // "veins" are bigger patches that show up when the NEXT thing to break out is this material.
+      ore: { base: "#c6702e", light: "#e8a25c", accent: "#4e9f8a",
+        flecks: [[-48, -72, 7, 4, 0.3], [-20, -92, 6, 3.5, -0.5], [22, -84, 7, 4, 0.4], [-62, -48, 6, 3.5, 0.2], [0, -58, 7, 4, -0.3],
+                 [34, -58, 6, 3.5, 0.6], [-30, -30, 7, 4, 0.1], [14, -32, 6, 3.5, -0.4], [48, -20, 6, 3.5, 0.3], [-66, -16, 6, 3.5, -0.2]],
+        veins:  [[-40, -60, 14, 7, -0.4], [10, -86, 12, 6, 0.3], [30, -42, 15, 7, -0.2], [-62, -22, 11, 6, 0.2], [-8, -30, 10, 5, 0.5]] } },
+  };
+  const MATERIAL_ORDER = ["stone", "copper"];
   const SELL_TIME = 1;          // seconds you must hold the click on the crusher to sell
   const UPGRADE_COST = 25;      // price of Tough Fists, in dollars
+  const QUICK_HANDS_COST = 40;  // price of Quick Hands (+10% mining speed), in dollars
+  const GLOVES_COST = 75;       // price of the Gloves tool, in dollars
+  const SPEED_BONUS = 0.10;     // each speed upgrade adds this much mining speed (0.10 = +10%)
+  const BASE_PUNCH_TIME = 0.5;  // seconds between punches at normal mining speed (faster mining speed shortens this)
   const INVENTORY_BASE = 10;    // how many stones you can carry to start
   const WALK_SPEED = 220;       // pixels per second
   const SHOP_X = 300;           // where each building / the rock is
@@ -100,15 +192,31 @@
 
   // ---------- Game state ----------
   let money = 0;
-  let stones = 0;               // stones in your bag
+  const bag = { stone: 0, copper: 0 };
+  const unlocked = { stone: true, copper: false };   // materials you have bought in the shop (copper costs $50)   // what you are carrying: a count for each material
   let inventoryCap = INVENTORY_BASE;
   let progress = 0;             // damage dealt toward the next stone (carries over between stones)
   let punchPower = 1;           // damage per punch
+  let target = null;            // what the rock will give next ("stone" or "copper"). You can see it before you break it.
+  const dropChance = { copper: 0.5 };   // chance that the next thing in the rock is copper (otherwise it is stone)
   let hasToughFists = false;
+  let hasGloves = false;        // the Gloves tool (also changes how your character looks)
+  let hasQuickHands = false;    // the Quick Hands upgrade
+  let miningSpeed = 1;          // 1 = normal; each speed bonus adds 0.10
+  let punchCooldown = 0;        // seconds left before you can punch again
   let openStation = null;       // null, or "shop" when the shop window is open
   let holding = false;          // are you holding the mouse button down on the crusher?
   let sellHold = 0;             // how many seconds you have held it so far
+  let shopPage = "upgrades";    // which page of the shop is showing: "upgrades" or "tools"
   let ground = [];              // stones lying on the ground; each number is a "slot" next to the rock
+  const bagCount = () => MATERIAL_ORDER.reduce((n, m) => n + bag[m], 0);   // every item takes 1 space
+  const healthOf = m => MATERIALS[m].health;   // damage needed to break out one of this material
+  // Your stats are worked out from what you own, so saving only needs to remember what you own.
+  function recalcStats() {
+    punchPower = 1 + (hasToughFists ? 1 : 0) + (hasGloves ? 1 : 0);                    // damage per punch
+    miningSpeed = 1 + (hasQuickHands ? SPEED_BONUS : 0) + (hasGloves ? SPEED_BONUS : 0);   // punches per second multiplier
+  }
+  const rollTarget = () => unlocked.copper && Math.random() < dropChance.copper ? "copper" : "stone";   // copper only appears once you have bought it
   const player = { x: 470, facing: 1, walkPhase: 0, moving: false, punchT: 1 }; // punchT: 0..1 is a punch, 1 = idle
   const keys = {};
   let rockShake = 0;
@@ -118,9 +226,9 @@
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
   const $ = id => document.getElementById(id);
-  const bagCountEl = $("bagCount"), bagCapEl = $("bagCap"), bagFullEl = $("bagFull"), moneyEl = $("money");
-  const hintEl = $("hint"), shopPanel = $("shopPanel");
-  const buyBtn = $("buyBtn"), leaveBtn = $("leaveBtn");
+  const bagCountEl = $("bagCount"), bagCapEl = $("bagCap"), bagFullEl = $("bagFull"), bagDetailEl = $("bagDetail"), moneyEl = $("money"), copperChanceEl = $("copperChance");
+  const hintEl = $("hint"), shopScene = $("shopScene");
+  const buyBtn = $("buyBtn"), buyCopperBtn = $("buyCopperBtn"), buyGlovesBtn = $("buyGlovesBtn"), buyQuickBtn = $("buyQuickBtn"), leaveBtn = $("leaveBtn");
 
   // ---------- Colors (switch with the device's light/dark setting) ----------
   const dark = window.matchMedia("(prefers-color-scheme: dark)");
@@ -177,73 +285,108 @@
   });
   leaveBtn.addEventListener("click", () => { openStation = null; });
 
+  // Shop pages: the tabs switch between the Upgrades page and the Tools page.
+  const tabs = [...document.querySelectorAll(".tab")], pages = [...document.querySelectorAll(".page")];
+  function renderShop() {
+    tabs.forEach(t => t.setAttribute("aria-selected", String(t.dataset.page === shopPage)));
+    pages.forEach(pg => { pg.hidden = pg.dataset.page !== shopPage; });
+  }
+  tabs.forEach(t => t.addEventListener("click", () => { shopPage = t.dataset.page; renderShop(); }));
+  renderShop();
+
   // Hold the left mouse button on the crusher to sell. Releasing, moving off it, or walking away cancels.
   function cancelSell() { holding = false; sellHold = 0; }
   canvas.addEventListener("mousedown", e => {
     if (e.button !== 0 || openStation || !over(e, CRUSHER_X, 50, 100)) return;
     if (!nearCrusher()) { pops.push({ x: CRUSHER_X, y: groundAt(CRUSHER_X) - 130, life: 1, text: "Walk closer", small: true }); return; }
-    if (stones === 0) { pops.push({ x: CRUSHER_X, y: groundAt(CRUSHER_X) - 130, life: 1, text: "No stones to sell", small: true }); return; }
+    if (bagCount() === 0) { pops.push({ x: CRUSHER_X, y: groundAt(CRUSHER_X) - 130, life: 1, text: "Nothing to sell", small: true }); return; }
     holding = true; sellHold = 0;
   });
   canvas.addEventListener("mousemove", e => { if (holding && !over(e, CRUSHER_X, 50, 100)) cancelSell(); });
   addEventListener("mouseup", cancelSell);
 
-  // ---------- Stones on the ground ----------
+  // ---------- Items on the ground ----------
   // Each "slot" is a spot next to the rock: slots 0-15 are the first row, 16-31 stack on top, and so on.
+  // An item on the ground remembers its slot and what it is ("stone" or "copper").
   const slotX = slot => ROCK_X - 95 - (slot % 16) * 13;
   const slotRow = slot => Math.floor(slot / 16);
 
-  function dropStone() {
-    for (let slot = 0; slot < MAX_GROUND; slot++) {        // find the first empty spot
-      if (!ground.includes(slot)) { ground.push(slot); return true; }
+  function dropItem(type) {
+    for (let slot = 0; slot < MAX_GROUND; slot++) {          // find the first empty spot
+      if (!ground.some(g => g.slot === slot)) { ground.push({ slot, type }); return true; }
     }
-    return false;                                          // the ground is completely full, the stone is lost
+    return false;                                            // the ground is completely full, the item is lost
   }
 
-  // Walking over a stone picks it up, but only if there is room in your bag.
-  function pickUpNearbyStones() {
+  // Walking over an item picks it up, but only if there is room in your bag.
+  function pickUpNearbyItems() {
     let picked = 0;
-    for (let i = ground.length - 1; i >= 0 && stones < inventoryCap; i--) {
-      if (Math.abs(slotX(ground[i]) - player.x) < 20) { ground.splice(i, 1); stones += 1; picked += 1; }
+    for (let i = ground.length - 1; i >= 0 && bagCount() < inventoryCap; i--) {
+      if (Math.abs(slotX(ground[i].slot) - player.x) < 20) { bag[ground[i].type] += 1; ground.splice(i, 1); picked += 1; }
     }
     if (picked > 0) { pops.push({ x: player.x, y: groundAt(player.x) - 100, life: 1, text: "+" + picked, small: true }); saveGame(); }
   }
 
   // ---------- The core mechanic ----------
   function punchRock() {
+    if (punchCooldown > 0) return;                           // still recovering from the last punch
+    punchCooldown = BASE_PUNCH_TIME / miningSpeed;           // faster mining speed = shorter wait between punches
     player.facing = 1;
     player.punchT = 0;
     rockShake = 1;
     for (let i = 0; i < 4; i++) chips.push({ x: ROCK_X - 50, y: groundAt(ROCK_X) - 60, vx: -60 - Math.random() * 90, vy: -120 - Math.random() * 80, life: 1 });
     progress += punchPower;
-    let bagged = 0, dropped = 0;
-    while (progress >= STONE_HEALTH) {                     // a stone breaks off, leftover damage carries over
-      progress -= STONE_HEALTH;
-      if (stones < inventoryCap) { stones += 1; bagged += 1; }
-      else { dropStone(); dropped += 1; }                  // bag is full: the stone falls on the ground
+    const got = {};
+    let dropped = 0;
+    while (progress >= healthOf(target)) {                   // the current material breaks out; leftover damage carries over
+      progress -= healthOf(target);
+      if (bagCount() < inventoryCap) { bag[target] += 1; got[target] = (got[target] || 0) + 1; }
+      else { dropItem(target); dropped += 1; }               // bag is full: it falls on the ground
+      target = rollTarget();                                 // decide what the rock gives next
     }
-    if (bagged > 0) pops.push({ x: ROCK_X, y: groundAt(ROCK_X) - 130, life: 1, text: bagged === 1 ? "+1 stone" : "+" + bagged + " stones" });
-    if (dropped > 0) pops.push({ x: ROCK_X, y: groundAt(ROCK_X) - 152, life: 1, text: "Bag full!", small: true });
+    let line = 0;
+    for (const m of MATERIAL_ORDER) {
+      if (got[m]) pops.push({ x: ROCK_X, y: groundAt(ROCK_X) - 130 - line++ * 26, life: 1, text: "+" + got[m] + " " + MATERIALS[m].name.toLowerCase() });
+    }
+    if (dropped > 0) pops.push({ x: ROCK_X, y: groundAt(ROCK_X) - 156, life: 1, text: "Bag full!", small: true });
     saveGame();
   }
 
   // ---------- The crusher and the shop ----------
-  function sellStones() {
-    if (stones === 0) return;
-    const earned = stones * STONE_VALUE;
+  function sellAll() {                                       // sells everything in the bag, at each material's price
+    let earned = 0;
+    for (const m of MATERIAL_ORDER) { earned += bag[m] * MATERIALS[m].value; bag[m] = 0; }
+    if (earned === 0) return;
     money += earned;
-    stones = 0;
     pops.push({ x: CRUSHER_X, y: groundAt(CRUSHER_X) - 130, life: 1, text: "+$" + earned });
     saveGame();
   }
   function buyToughFists() {
-    if (hasToughFists || money < UPGRADE_COST) return;     // already owned, or can't afford it
+    if (hasToughFists || money < UPGRADE_COST) return;       // already owned, or can't afford it
     money -= UPGRADE_COST;
     hasToughFists = true;
-    punchPower = 2;
+    recalcStats();
     saveGame();
   }
   buyBtn.addEventListener("click", buyToughFists);
+  function unlockMaterial(m) {                               // buy a new material on the Rock page; the rock changes its look to show it
+    const cost = MATERIALS[m].cost;
+    if (unlocked[m] || money < cost) return;
+    money -= cost;
+    unlocked[m] = true;
+    saveGame();
+  }
+  buyCopperBtn.addEventListener("click", () => unlockMaterial("copper"));
+  function buyGloves() {                                     // tool: +1 damage and +10% mining speed, and your character wears gloves
+    if (hasGloves || money < GLOVES_COST) return;
+    money -= GLOVES_COST; hasGloves = true; recalcStats(); saveGame();
+  }
+  function buyQuickHands() {                                 // upgrade: +10% mining speed
+    if (hasQuickHands || money < QUICK_HANDS_COST) return;
+    money -= QUICK_HANDS_COST; hasQuickHands = true; recalcStats(); saveGame();
+  }
+  buyGlovesBtn.addEventListener("click", buyGloves);
+  buyQuickBtn.addEventListener("click", buyQuickHands);
 
   // ---------- Update (runs every frame) ----------
   function update(dt) {
@@ -255,7 +398,8 @@
       player.walkPhase += dt * 10;
     }
     player.x = Math.max(30, Math.min(ROCK_X - 60, player.x));
-    if (player.punchT < 1) player.punchT = Math.min(1, player.punchT + dt / 0.22);
+    punchCooldown = Math.max(0, punchCooldown - dt);
+    if (player.punchT < 1) player.punchT = Math.min(1, player.punchT + dt / (BASE_PUNCH_TIME / miningSpeed * 0.45));   // faster speed = faster punch animation
     rockShake = Math.max(0, rockShake - dt * 6);
     for (const c of chips) { c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 500 * dt; c.life -= dt * 1.6; }
     for (const p of pops) { p.y -= 40 * dt; p.life -= dt * 1.2; }
@@ -265,27 +409,37 @@
     if (holding && (!nearCrusher() || openStation)) cancelSell();
     if (holding) {
       sellHold += dt;
-      if (sellHold >= SELL_TIME) { sellStones(); cancelSell(); }   // selling resets the hold, so you must click again
+      if (sellHold >= SELL_TIME) { sellAll(); cancelSell(); }   // selling resets the hold, so you must click again
     }
 
-    pickUpNearbyStones();
+    pickUpNearbyItems();
 
     // Top-of-screen display
-    bagCountEl.textContent = stones;
+    bagCountEl.textContent = bagCount();
     bagCapEl.textContent = inventoryCap;
-    bagFullEl.hidden = stones < inventoryCap;
+    bagFullEl.hidden = bagCount() < inventoryCap;
+    const parts = MATERIAL_ORDER.filter(m => bag[m] > 0).map(m => bag[m] + " " + MATERIALS[m].name.toLowerCase());
+    bagDetailEl.textContent = parts.length ? "(" + parts.join(", ") + ")" : "";
+    copperChanceEl.textContent = Math.round(dropChance.copper * 100);
+    const copperCost = MATERIALS.copper.cost;
+    buyCopperBtn.disabled = unlocked.copper || money < copperCost;
+    buyCopperBtn.textContent = unlocked.copper ? "Unlocked" : money < copperCost ? `Need $${copperCost}` : `Unlock for $${copperCost}`;
+    buyQuickBtn.disabled = hasQuickHands || money < QUICK_HANDS_COST;
+    buyQuickBtn.textContent = hasQuickHands ? "Owned" : money < QUICK_HANDS_COST ? `Need $${QUICK_HANDS_COST}` : `Buy for $${QUICK_HANDS_COST}`;
+    buyGlovesBtn.disabled = hasGloves || money < GLOVES_COST;
+    buyGlovesBtn.textContent = hasGloves ? "Owned" : money < GLOVES_COST ? `Need $${GLOVES_COST}` : `Buy for $${GLOVES_COST}`;
     moneyEl.textContent = "$" + money;
 
     // Windows
-    shopPanel.hidden = openStation !== "shop";
+    shopScene.hidden = openStation !== "shop";               // the shop scene only shows once you click the shop
     leaveBtn.hidden = !openStation;
     buyBtn.disabled = hasToughFists || money < UPGRADE_COST;
     buyBtn.textContent = hasToughFists ? "Owned" : money < UPGRADE_COST ? `Need $${UPGRADE_COST}` : `Buy for $${UPGRADE_COST}`;
 
-    const left = STONE_HEALTH - progress;
+    const left = healthOf(target) - progress;
     hintEl.textContent = openStation === "shop" ? "Browsing the shop"
-      : nearRock() ? (stones >= inventoryCap ? "Bag full: new stones drop on the ground" : `Punch power ${punchPower}: ${left} more damage for the next stone`)
-      : nearCrusher() ? (stones > 0 ? "Hold click on the crusher to sell your stones" : "Mine some stones to sell here")
+      : nearRock() ? (bagCount() >= inventoryCap ? "Bag full: new items drop on the ground" : `${MATERIALS[target].name}: ${left} more damage (power ${punchPower}, speed ${miningSpeed.toFixed(1)}x)`)
+      : nearCrusher() ? (bagCount() > 0 ? "Hold click on the crusher to sell what you are carrying" : "Mine something to sell here")
       : nearShop() ? "Click the shop to go in"
       : "Walk with A / D or the arrow keys";
   }
@@ -421,48 +575,42 @@
     g.fillStyle = gr; g.fillRect(0, 0, W, H);
   }
 
-  // ---- The character: a person in a red shirt, blue denim overalls and boots ----
+  // ---- The character: a simple, faceless figure in blue overalls, outlined so it is easy to see ----
   function drawPlayer() {
     const x = player.x, f = player.facing, G = groundAt(x);
-    const SKIN = "#e2b18a", HAIR = "#4a3426", SHIRT = "#c24d3d", DENIM = "#3a6bb5", DENIM_D = "#2b4f8a", BOOT = "#4a3322";
+    const BODY = "#3a6bb5", BODY_D = "#2b4f8a", BIB = "#4e82cc", SKIN = "#d8d0c2", BOOT = "#3b2b20", LINE = "#1b2a40", GLOVE = "#d9a441", GLOVE_CUFF = "#9c6b1e";
     const sw = player.moving ? Math.sin(player.walkPhase) * 11 : 0;                      // how far the legs swing
     const lift = side => player.moving ? Math.max(0, side * Math.cos(player.walkPhase)) * 4 : 0;   // feet lift as they step
-    const shoulderY = G - 60;
-    const limb = (x0, y0, x1, y1, w, col) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); };
+    const shoulderY = G - 58;
+    const stroke = (w, col) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.stroke(); };
+    const limb = (x0, y0, x1, y1, w, col) => { for (const [ww, cc] of [[w + 3, LINE], [w, col]]) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); stroke(ww, cc); } };
     const arm = (sx, sy, hx, hy, fist) => {                                              // shoulder -> elbow -> hand
       const ex = (sx + hx) / 2 - f * 2, ey = (sy + hy) / 2 + 4;
-      ctx.strokeStyle = SHIRT; ctx.lineWidth = 6; ctx.lineCap = "round"; ctx.lineJoin = "round";
-      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(hx, hy); ctx.stroke();
-      ctx.fillStyle = SKIN; ctx.beginPath(); ctx.arc(hx, hy, fist ? 5 : 4, 0, Math.PI * 2); ctx.fill();
+      for (const [ww, cc] of [[10, LINE], [7, BODY]]) { ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(hx, hy); stroke(ww, cc); }
+      if (hasGloves) {                                                                  // work gloves: a cuff at the wrist and a bigger tan hand
+        const dx = ex - hx, dy = ey - hy, len = Math.hypot(dx, dy) || 1, cx = hx + dx / len * 6, cy = hy + dy / len * 6;
+        for (const [ww, cc] of [[11, LINE], [8, GLOVE_CUFF]]) { ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(cx, cy); stroke(ww, cc); }
+      }
+      ctx.beginPath(); ctx.arc(hx, hy, (fist ? 5.5 : 5) + (hasGloves ? 1.5 : 0), 0, Math.PI * 2); ctx.fillStyle = hasGloves ? GLOVE : SKIN; ctx.fill(); stroke(1.5, LINE);
     };
     ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.beginPath(); ctx.ellipse(x, G + 1, 17, 4, 0, 0, Math.PI * 2); ctx.fill();   // shadow on the ground
 
     arm(x - f * 7, shoulderY + 3, x - f * 9 + sw * f * 0.5, shoulderY + 27, false);       // back arm
 
-    const feet = [[x - 4 + sw, G - lift(1)], [x + 4 - sw, G - lift(-1)]];                  // legs (blue pants) and boots
-    feet.forEach(([fx, fy], i) => limb(x + (i ? 4 : -4), G - 34, fx, fy - 3, 8, DENIM_D));
-    ctx.fillStyle = BOOT; feet.forEach(([fx, fy]) => { ctx.beginPath(); ctx.ellipse(fx + f * 3, fy - 2, 7, 4, 0, 0, Math.PI * 2); ctx.fill(); });
+    const feet = [[x - 4 + sw, G - lift(1)], [x + 4 - sw, G - lift(-1)]];                  // legs and boots
+    feet.forEach(([fx, fy], i) => limb(x + (i ? 4 : -4), G - 34, fx, fy - 3, 9, BODY_D));
+    feet.forEach(([fx, fy]) => { ctx.beginPath(); ctx.ellipse(fx + f * 3, fy - 2, 7.5, 4.5, 0, 0, Math.PI * 2); ctx.fillStyle = BOOT; ctx.fill(); stroke(1.5, LINE); });
 
-    ctx.fillStyle = SHIRT; ctx.beginPath(); ctx.roundRect(x - 9, shoulderY - 2, 18, 30, 4); ctx.fill();   // shirt
-    ctx.fillStyle = DENIM_D; ctx.fillRect(x - 9, G - 40, 18, 9);                           // overalls: waist and pants
-    ctx.fillStyle = DENIM; ctx.fillRect(x - 7, G - 56, 14, 17);                            // overalls: bib
-    limb(x - 6, shoulderY - 1, x - 5, G - 55, 3.5, DENIM); limb(x + 6, shoulderY - 1, x + 5, G - 55, 3.5, DENIM);   // straps
-    ctx.strokeStyle = DENIM_D; ctx.lineWidth = 1.2; ctx.strokeRect(x - 4, G - 51, 8, 6);   // pocket
-    ctx.fillStyle = "#e8c25a"; [-6, 6].forEach(bx => { ctx.beginPath(); ctx.arc(x + bx, G - 55, 1.7, 0, Math.PI * 2); ctx.fill(); });   // buttons
-
-    ctx.fillStyle = SKIN; ctx.fillRect(x - 3, G - 67, 6, 7);                               // neck
-    ctx.beginPath(); ctx.arc(x, G - 77, 10, 0, Math.PI * 2); ctx.fill();                   // head
-    ctx.fillStyle = HAIR; ctx.beginPath(); ctx.arc(x, G - 78, 10.5, Math.PI, 0); ctx.closePath(); ctx.fill();   // hair
-    ctx.beginPath(); ctx.ellipse(x - f * 7, G - 76, 4, 7, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#d29a74"; ctx.beginPath(); ctx.arc(x + f * 10, G - 75, 2, 0, Math.PI * 2); ctx.fill();   // nose
-    ctx.fillStyle = "#222"; ctx.beginPath(); ctx.arc(x + f * 4.5, G - 77, 1.6, 0, Math.PI * 2); ctx.fill();   // eye
-    limb(x + f * 3, G - 70, x + f * 7, G - 70, 1.3, "#8a4b3a");                            // mouth
+    ctx.beginPath(); ctx.roundRect(x - 10, shoulderY - 3, 20, 33, 6); ctx.fillStyle = BODY; ctx.fill(); stroke(1.6, LINE);   // torso
+    ctx.fillStyle = BIB; ctx.beginPath(); ctx.roundRect(x - 6, shoulderY + 6, 12, 14, 3); ctx.fill();                    // lighter bib on the overalls
+    ctx.beginPath(); ctx.arc(x, G - 72, 11, 0, Math.PI * 2); ctx.fillStyle = SKIN; ctx.fill(); stroke(1.6, LINE);        // plain round head, no face
+    ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.beginPath(); ctx.ellipse(x + f * 3, G - 75, 4, 3, 0, 0, Math.PI * 2); ctx.fill();   // highlight on the side it faces
 
     if (player.punchT < 1) { const reach = Math.sin(Math.PI * player.punchT); arm(x + f * 7, shoulderY + 3, x + f * (16 + reach * 26), shoulderY + 9, true); }
     else arm(x + f * 7, shoulderY + 3, x + f * 9 - sw * f * 0.5, shoulderY + 27, false);   // front arm
   }
 
-  // ---- The rock: faceted grey stone with cracks, layers, lichen and moss ----
+  // ---- The rock: plain faceted grey stone with cracks and layers. Unlocking a material adds that material's ore to its look. ----
   function drawRock(c) {
     const shake = Math.sin(performance.now() / 18) * 4 * rockShake;
     ctx.save(); ctx.translate(ROCK_X, groundAt(ROCK_X));
@@ -483,18 +631,22 @@
     ctx.globalAlpha = 0.55; ctx.lineWidth = 2; ctx.beginPath();                                                     // layers in the stone
     ctx.moveTo(-78, -30); ctx.lineTo(55, -44); ctx.moveTo(-64, -58); ctx.lineTo(30, -66); ctx.moveTo(-70, -12); ctx.lineTo(60, -22); ctx.stroke();
     ctx.globalAlpha = 1;
-    for (const [lx, ly, rx, ry, col, a] of [[-35, -86, 11, 5, c.lichen, .85], [12, -62, 8, 4, c.lichen, .85], [-55, -34, 9, 5, c.lichen, .8], [40, -80, 6, 4, c.lichen, .8],
-                                          [-8, -92, 7, 3, "#e6ebdc", .55], [30, -48, 9, 4, "#e6ebdc", .45], [-45, -58, 6, 3, "#e6ebdc", .5]]) {   // lichen
-      ctx.fillStyle = col; ctx.globalAlpha = a; ctx.beginPath(); ctx.ellipse(lx, ly, rx, ry, 0.3, 0, Math.PI * 2); ctx.fill();
+    for (const m of MATERIAL_ORDER) {                                                                               // each unlocked material adds its ore to the rock
+      const ore = MATERIALS[m].ore;
+      if (!ore || !unlocked[m]) continue;
+      const patches = list => {
+        for (const [ox, oy, rx, ry, rot] of list) {
+          ctx.save(); ctx.translate(ox, oy); ctx.rotate(rot);
+          ctx.fillStyle = ore.base; ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = ore.light; ctx.beginPath(); ctx.ellipse(-rx * 0.25, -ry * 0.3, rx * 0.5, ry * 0.35, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = ore.accent; ctx.beginPath(); ctx.ellipse(rx * 0.55, ry * 0.4, rx * 0.25, ry * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        }
+      };
+      patches(ore.flecks);
+      if (target === m) patches(ore.veins);                                                                         // bigger veins: this is what breaks out next
     }
-    ctx.fillStyle = c.bush2; ctx.globalAlpha = 0.85;                                                                // moss at the base
-    for (const mx of [-62, -38, -12, 18, 48, 70]) { ctx.beginPath(); ctx.ellipse(mx, -2, 13, 5, 0, 0, Math.PI * 2); ctx.fill(); }
-    ctx.globalAlpha = 1;
     ctx.restore();
-    for (const [px, py, pr] of [[97, 0, 5], [108, 1, 3.5], [92, 1, 3]]) {                                           // loose pebbles beside the rock
-      const y = groundAt(ROCK_X + px) - 2; ctx.fillStyle = c.rock; ctx.strokeStyle = c.rockDark; ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.ellipse(ROCK_X + px, y, pr, pr * 0.7, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    }
   }
 
   // ---- The shop: a wooden cabin with a shingle roof, striped awning, window and a barrel ----
@@ -586,11 +738,11 @@
   }
 
   function drawGroundStones(c) {
-    const shape = [[-7, 0], [-5, -5], [1, -6], [6, -3], [7, 1], [3, 4], [-4, 3]];            // a lumpy stone
-    for (const slot of ground) {
-      const x = slotX(slot), y = groundAt(x) - 5 - slotRow(slot) * 9, sc = 0.9 + (slot % 3) * 0.1;
+    const shape = [[-7, 0], [-5, -5], [1, -6], [6, -3], [7, 1], [3, 4], [-4, 3]];            // a lumpy chunk
+    for (const { slot, type } of ground) {
+      const x = slotX(slot), y = groundAt(x) - 5 - slotRow(slot) * 9, sc = 0.9 + (slot % 3) * 0.1, copper = type === "copper";
       ctx.beginPath(); shape.forEach(([px, py], i) => i ? ctx.lineTo(x + px * sc, y + py * sc) : ctx.moveTo(x + px * sc, y + py * sc)); ctx.closePath();
-      ctx.fillStyle = c.rock; ctx.fill(); ctx.strokeStyle = c.rockDark; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = copper ? "#c6702e" : c.rock; ctx.fill(); ctx.strokeStyle = copper ? "#7a3f14" : c.rockDark; ctx.lineWidth = 1.5; ctx.stroke();
       ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.beginPath(); ctx.ellipse(x - 1 * sc, y - 3 * sc, 3 * sc, 1.5 * sc, -0.3, 0, Math.PI * 2); ctx.fill();   // highlight
     }
   }
@@ -612,9 +764,10 @@
       ctx.strokeStyle = "#f4f0e6"; ctx.lineWidth = 2; ctx.strokeRect(x0, y0, w, 9);
     }
     if (nearRock()) {                                      // damage-progress dots above the rock
-      for (let i = 0; i < STONE_HEALTH; i++) {
-        ctx.beginPath(); ctx.arc(ROCK_X + (i - (STONE_HEALTH - 1) / 2) * 20, groundAt(ROCK_X) - 134, 6, 0, Math.PI * 2);
-        ctx.fillStyle = i < progress ? c.accent : "rgba(0,0,0,0.4)"; ctx.fill();
+      const health = healthOf(target), dotColor = target === "copper" ? "#d9822b" : c.accent;
+      for (let i = 0; i < health; i++) {
+        ctx.beginPath(); ctx.arc(ROCK_X + (i - (health - 1) / 2) * 20, groundAt(ROCK_X) - 134, 6, 0, Math.PI * 2);
+        ctx.fillStyle = i < progress ? dotColor : "rgba(0,0,0,0.4)"; ctx.fill();
         ctx.strokeStyle = "#f4f0e6"; ctx.lineWidth = 1.5; ctx.stroke();
       }
     }
@@ -624,7 +777,7 @@
   const SAVE_KEY = "rockPuncherSave";
 
   function saveGame() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ money, stones, progress, hasToughFists, ground })); } catch (err) {}
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ money, bag, progress, hasToughFists, hasGloves, hasQuickHands, unlocked, dropChance, target, ground, playerX: player.x })); } catch (err) {}
   }
 
   function loadGame() {
@@ -634,21 +787,43 @@
       const d = JSON.parse(raw);
       const whole = n => Math.max(0, Math.floor(Number(n) || 0));
       hasToughFists = d.hasToughFists === true;
-      punchPower = hasToughFists ? 2 : 1;
-      progress = Math.min(STONE_HEALTH - 1, whole(d.progress));
-      if (d.money === undefined) { money = whole(d.stones); stones = 0; }   // old (v3) save: stones used to be the money
-      else { money = whole(d.money); stones = Math.min(inventoryCap, whole(d.stones)); }
-      ground = Array.isArray(d.ground) ? [...new Set(d.ground.map(Number))].filter(n => Number.isInteger(n) && n >= 0 && n < MAX_GROUND) : [];
+      hasGloves = d.hasGloves === true;
+      hasQuickHands = d.hasQuickHands === true;
+      recalcStats();
+      if (d.money === undefined) { money = whole(d.stones); }              // very old (v3) save: stones used to be the money
+      else {
+        money = whole(d.money);
+        const saved = d.bag || { stone: d.stones };                        // older saves kept one "stones" number; newer ones keep a bag
+        for (const m of MATERIAL_ORDER) bag[m] = whole(saved[m]);
+        while (bagCount() > inventoryCap) bag[MATERIAL_ORDER.find(m => bag[m] > 0)] -= 1;   // never carry more than fits
+      }
+      unlocked.copper = !!(d.unlocked && d.unlocked.copper);
+      if (d.dropChance && Number(d.dropChance.copper) >= 0 && Number(d.dropChance.copper) <= 1) dropChance.copper = Number(d.dropChance.copper);   // future drop-rate upgrades
+      if (Number.isFinite(Number(d.playerX))) player.x = Math.max(30, Math.min(ROCK_X - 60, Number(d.playerX)));   // where you were standing
+      if (MATERIALS[d.target] && unlocked[d.target]) target = d.target;
+      progress = Math.min(healthOf(target || "stone") - 1, whole(d.progress));
+      ground = Array.isArray(d.ground) ? d.ground.map(g => typeof g === "number" ? { slot: g, type: "stone" } : { slot: Number(g.slot), type: g.type })
+        .filter(g => Number.isInteger(g.slot) && g.slot >= 0 && g.slot < MAX_GROUND && MATERIALS[g.type]) : [];
+      ground = ground.filter((g, i) => ground.findIndex(h => h.slot === g.slot) === i);   // one item per slot
     } catch (err) {}
   }
 
   $("resetBtn").addEventListener("click", () => {
     if (!confirm("Erase all progress and start over?")) return;
-    money = 0; stones = 0; progress = 0; hasToughFists = false; punchPower = 1; ground = []; openStation = null;
+    money = 0; progress = 0; hasToughFists = false; hasGloves = false; hasQuickHands = false; recalcStats(); ground = []; openStation = null; shopPage = "upgrades"; renderShop();
+    for (const m of MATERIAL_ORDER) bag[m] = 0;
+    unlocked.copper = false; dropChance.copper = 0.5; player.x = 470;
+    target = rollTarget();
     try { localStorage.removeItem(SAVE_KEY); } catch (err) {}
   });
 
   loadGame();
+  if (!target) target = rollTarget();                                      // first time playing: decide what the rock gives first
+
+  // Safety saves: the game already saves after every action, and also saves every few seconds and whenever you leave the page.
+  setInterval(saveGame, 5000);
+  addEventListener("pagehide", saveGame);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) saveGame(); });
 
   // ---------- Game loop ----------
   let last = performance.now();
