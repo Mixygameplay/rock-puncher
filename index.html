@@ -206,6 +206,7 @@
   let punchCooldown = 0;        // seconds left before you can punch again
   let openStation = null;       // null, or "shop" when the shop window is open
   let holding = false;          // are you holding the mouse button down on the crusher?
+  let mining = false;           // are you holding the mouse button down on the rock?
   let sellHold = 0;             // how many seconds you have held it so far
   let shopPage = "upgrades";    // which page of the shop is showing: "upgrades" or "tools"
   let ground = [];              // stones lying on the ground; each number is a "slot" next to the rock
@@ -280,8 +281,7 @@
   canvas.addEventListener("click", e => {
     if (openStation) return;                               // no punching or walking while a window is open
     const tooFar = (x, y) => pops.push({ x, y, life: 1, text: "Walk closer", small: true });
-    if (over(e, ROCK_X, 75, 110)) { nearRock() ? punchRock() : tooFar(ROCK_X, groundAt(ROCK_X) - 130); }
-    else if (over(e, SHOP_X, 70, 140)) { nearShop() ? openStation = "shop" : tooFar(SHOP_X, groundAt(SHOP_X) - 155); }
+    if (over(e, SHOP_X, 70, 140)) { nearShop() ? openStation = "shop" : tooFar(SHOP_X, groundAt(SHOP_X) - 155); }
   });
   leaveBtn.addEventListener("click", () => { openStation = null; });
 
@@ -293,6 +293,18 @@
   }
   tabs.forEach(t => t.addEventListener("click", () => { shopPage = t.dataset.page; renderShop(); }));
   renderShop();
+
+  // Hold the left mouse button on the rock to mine. You punch once right away, then keep punching as fast as your
+  // mining speed allows until you let go, move the mouse off the rock, or walk away.
+  canvas.addEventListener("mousedown", e => {
+    if (e.button !== 0 || openStation || !over(e, ROCK_X, 75, 110)) return;
+    if (!nearRock()) { pops.push({ x: ROCK_X, y: groundAt(ROCK_X) - 130, life: 1, text: "Walk closer", small: true }); return; }
+    mining = true;
+    punchRock();                                             // punch right away so even a very quick click always lands
+  });
+  canvas.addEventListener("mousemove", e => { if (mining && !over(e, ROCK_X, 75, 110)) mining = false; });
+  addEventListener("mouseup", () => { mining = false; });
+  addEventListener("blur", () => { mining = false; });
 
   // Hold the left mouse button on the crusher to sell. Releasing, moving off it, or walking away cancels.
   function cancelSell() { holding = false; sellHold = 0; }
@@ -405,6 +417,8 @@
     for (const p of pops) { p.y -= 40 * dt; p.life -= dt * 1.2; }
     for (const list of [chips, pops]) for (let i = list.length - 1; i >= 0; i--) if (list[i].life <= 0) list.splice(i, 1);
 
+    if (mining) { if (!nearRock() || openStation) mining = false; else punchRock(); }   // holding keeps punching, paced by mining speed
+
     // Hold-to-sell: the timer runs while the mouse is held, and a sale happens when it fills up.
     if (holding && (!nearCrusher() || openStation)) cancelSell();
     if (holding) {
@@ -438,7 +452,7 @@
 
     const left = healthOf(target) - progress;
     hintEl.textContent = openStation === "shop" ? "Browsing the shop"
-      : nearRock() ? (bagCount() >= inventoryCap ? "Bag full: new items drop on the ground" : `${MATERIALS[target].name}: ${left} more damage (power ${punchPower}, speed ${miningSpeed.toFixed(1)}x)`)
+      : nearRock() ? (bagCount() >= inventoryCap ? "Bag full: new items drop on the ground" : `Hold click to mine. ${MATERIALS[target].name}: ${left} more damage (power ${punchPower}, speed ${miningSpeed.toFixed(1)}x)`)
       : nearCrusher() ? (bagCount() > 0 ? "Hold click on the crusher to sell what you are carrying" : "Mine something to sell here")
       : nearShop() ? "Click the shop to go in"
       : "Walk with A / D or the arrow keys";
